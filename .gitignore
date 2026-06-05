@@ -1,0 +1,12 @@
+# .gitignore
+
+# Ignore Terraform downloaded plugins
+.terraform/
+
+# Ignore the state files (these contain your infrastructure secrets and structure)
+terraform.tfstate
+terraform.tfstate.backup
+
+# Ignore manual variable files (if you ever create one)
+terraform.tfvars
+*.auto.tfvars

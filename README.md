@@ -1,4 +1,4 @@
-# aws-terraform-cli 🚀
+# aws-terraform-lab 🚀
 
 Infraestrutura como Código com **Terraform** para **AWS**: módulos reutilizáveis e ambientes isolados (AWS real e laboratório local com LocalStack).
 

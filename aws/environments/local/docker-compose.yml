@@ -1,0 +1,15 @@
+# AWS emulada localmente: docker compose up -d
+services:
+  localstack:
+    image: localstack/localstack:4.4
+    container_name: localstack
+    ports:
+      - "127.0.0.1:4566:4566"
+    environment:
+      - SERVICES=ec2,s3,sts,iam
+      - EC2_VM_MANAGER=mock
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:4566/_localstack/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20

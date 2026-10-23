@@ -1,12 +1,30 @@
-# .gitignore
+# Diretórios locais do Terraform
+**/.terraform/*
 
-# Ignore Terraform downloaded plugins
-.terraform/
+# State (contém segredos e a estrutura da infra)
+*.tfstate
+*.tfstate.*
+.terraform.tfstate.lock.info
 
-# Ignore the state files (these contain your infrastructure secrets and structure)
-terraform.tfstate
-terraform.tfstate.backup
+# Planos salvos
+*.tfplan
+tfplan
 
-# Ignore manual variable files (if you ever create one)
-terraform.tfvars
-*.auto.tfvars
+# Variáveis locais (os *.example são versionados)
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+
+# Logs de crash e overrides locais
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Chaves
+*.pem
+
+# Lock file só faz sentido em root modules
+**/modules/**/.terraform.lock.hcl

@@ -1,125 +1,107 @@
+# aws-terraform-cli 🚀
 
-# init-ec2-train 🚀
+Infraestrutura como Código com **Terraform** para **AWS**: módulos reutilizáveis e ambientes isolados (AWS real e laboratório local com LocalStack).
 
-This repository contains an Infrastructure as Code (IaC) project using **Terraform** to automatically provision a secure Ubuntu virtual machine (EC2 instance) on AWS. It was created as a training project to learn Terraform, AWS provisioning, and security best practices.
+O ambiente `aws/environments/dev` provisiona uma instância EC2 Ubuntu com Security Group restrito, IMDSv2 obrigatório e disco criptografado.
 
-## 📁 Project Structure
-
-This project is organized into modular `.tf` files to keep the code clean and professional:
-
-* `main.tf` - The core builder file where all AWS resources are defined.
-* `variables.tf` - The configuration file for input variables.
-* `outputs.tf` - The configuration file for what prints to the terminal after creation.
-* `.gitignore` - Security file to prevent uploading sensitive Terraform states or configurations to GitLab.
-
----
-
-## 🚀 Getting Started (After Git Clone)
-
-If you just cloned this repository onto a new machine, follow these steps to initialize and deploy the infrastructure:
-
-### 1. Enter the Project Folder
-```bash
-cd init-ec2-train
+## 📁 Estrutura
 
 ```
-
-### 2. Export Your AWS Credentials
-
-Terraform needs temporary environment variables to authenticate with your AWS account. Run these commands in your terminal, replacing the placeholders with your actual keys:
-
-```bash
-export AWS_ACCESS_KEY_ID="YOUR_ACCESS_KEY_ID"
-export AWS_SECRET_ACCESS_KEY="YOUR_SECRET_ACCESS_KEY"
-
+.
+├── aws/
+│   ├── bootstrap/              # Bucket S3 para remote state (state local)
+│   ├── modules/
+│   │   ├── ec2-instance/       # EC2 com hardening (IMDSv2, EBS criptografado, AMI dinâmica)
+│   │   └── security-group/     # SG com regras declarativas
+│   └── environments/
+│       ├── dev/                # Root module: AWS real
+│       └── local/              # Root module: AWS emulada (LocalStack), custo zero
+├── .tflint.hcl
+├── .pre-commit-config.yaml
+└── Makefile                    # Atalhos opcionais: make <alvo> ENV=<ambiente>
 ```
 
-*(Note: If you are using an AWS Academy/Student account, remember to also export your `AWS_SESSION_TOKEN` if provided).*
+**Convenção:** `modules/` contém blocos genéricos e sem provider configurado; `environments/<env>/` são os root modules, onde ficam provider, backend, versões e valores. Novo ambiente = copiar `dev/` para `staging/` ou `prod/` e ajustar o `terraform.tfvars`.
 
-### 3. Initialize Terraform
+## ✅ Pré-requisitos
 
-Since the `.terraform` plugin directory is ignored by Git, you must download the provider plugins locally:
+- Terraform >= 1.10
+- AWS CLI configurado (`aws configure`, `aws sso login` ou variáveis `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`/`AWS_SESSION_TOKEN`)
+- Um Key Pair existente na região (ex: `anderson-novo`)
+- Opcional: `tflint`, `pre-commit`
+
+## 🚀 Uso rápido
 
 ```bash
+# 1. Variáveis do ambiente
+cp aws/environments/dev/terraform.tfvars.example aws/environments/dev/terraform.tfvars
+# edite: owner, key_name, allowed_ssh_cidrs (seu IP: curl -s https://checkip.amazonaws.com)
+
+# 2. Ciclo de vida
+make init          # ENV=dev é o padrão
+make plan
+make apply
+make output
+
+# 3. Conectar
+$(terraform -chdir=aws/environments/dev output -raw ssh_command)
+
+# 4. Limpar (evita custos)
+make destroy
+```
+
+`make help` lista todos os alvos. O `make` é opcional: dentro de `aws/environments/<env>/` os comandos `terraform init|plan|apply|destroy` funcionam normalmente.
+
+## 🧪 Laboratório local (sem AWS, sem custo)
+
+O ambiente `aws/environments/local` usa os **mesmos módulos**, mas aponta o provider para o [LocalStack](https://github.com/localstack/localstack), que emula a API da AWS num container Docker. Não precisa de conta nem de credenciais.
+
+```bash
+make local-up                      # sobe o LocalStack em localhost:4566
+
+cd aws/environments/local
 terraform init
-
-```
-
-### 4. Review the Deployment Plan
-
-Verify what resources Terraform intends to create in your cloud environment:
-
-```bash
 terraform plan
-
-```
-
-### 5. Deploy the Infrastructure
-
-Apply the configuration to spin up the EC2 instance on AWS (type `yes` when prompted):
-
-```bash
-terraform apply
-
-```
-
----
-
-## 🛠️ Detailed File Breakdown
-
-### 1. `main.tf` (The Core Infrastructure)
-
-This file connects to AWS and builds the resources step-by-step.
-
-* **`provider "aws"`**: Connects to Amazon Web Services using the region specified in our variables.
-* **`resource "random_pet" "server_username"`**: Generates a random, unique name (e.g., `star_dane`) to use as an ownership tag for tracking.
-* **`resource "random_password" "server_password"`**: Generates a secure, 16-character random password.
-* **`resource "aws_security_group" "allow_ssh"`**: Creates a virtual firewall. It opens **Port 22 (TCP)** for incoming traffic (`ingress`) so we can connect to the machine via SSH, and allows all outgoing traffic (`egress`).
-* **`resource "aws_instance" "my_server"`**: The virtual server. It provisions an Ubuntu AMI, sets the size to `t3.micro`, attaches the existing `anderson-novo` key pair, maps the security group, and attaches the tags.
-
-### 2. `variables.tf` (The Options)
-
-Holds the default settings for the project so `main.tf` stays clean.
-
-* **`aws_region`**: Set to `us-east-1` (N. Virginia).
-* **`instance_type`**: Set to `t3.micro` to ensure it stays within the AWS Free Tier.
-
-### 3. `outputs.tf` (The Results)
-
-Extracts important data from AWS after the machine is built and prints it to your terminal.
-
-* **`server_public_ip`**: Prints the live IPv4 address needed to connect.
-* **`generated_username`**: Prints the random pet name created.
-* **`generated_password`**: Holds the random password but masks it on the screen (`sensitive = true`) for security.
-
----
-
-## 🔒 Post-Deployment Operations
-
-### How to Reveal the Hidden Password
-
-Because the password output is marked as sensitive, run this command to print it cleanly when you need to copy it:
-
-```bash
-terraform output -raw generated_password
-
-```
-
-### Connect to the Server via SSH
-
-Use your local private key file to securely connect to the instance:
-
-```bash
-ssh -i ~/.ssh/anderson-novo.pem ubuntu@<server_public_ip>
-
-```
-
-### Clean Up / Destroy Resources
-
-When you are done practicing or testing, always tear down the infrastructure to avoid unexpected AWS costs:
-
-```bash
+terraform apply                    # "cria" SG + EC2 no emulador
+terraform state list
 terraform destroy
 
+cd - && make local-down            # derruba o emulador (descarta tudo)
 ```
 
+Limitações do emulador:
+
+- A EC2 é só um registro na API (modo `mock`). Não existe VM real, então não dá para conectar por SSH.
+- As AMIs reais da Canonical não existem lá. Por isso o ambiente usa uma AMI mock fixa (`ami_id`).
+- O LocalStack não implementa a API de IMDSv2. Por isso o ambiente local usa `manage_metadata_options = false`; na AWS real o IMDSv2 continua obrigatório.
+
+Serve para treinar o fluxo do Terraform (plan, apply, state, módulos, refatoração) antes de rodar em `dev`.
+
+## 🗄️ Remote state (recomendado)
+
+Por padrão o state é local. Para trabalho em equipe/CI, use S3 com lock nativo (`use_lockfile`, sem DynamoDB):
+
+```bash
+make bootstrap                                   # cria bucket versionado, criptografado e privado
+terraform -chdir=aws/bootstrap output -raw backend_hcl > aws/environments/dev/backend.hcl
+# troque <env> por dev no backend.hcl e descomente o bloco em aws/environments/dev/backend.tf
+make init                                        # detecta backend.hcl automaticamente
+```
+
+## 🔒 Segurança aplicada
+
+| Controle | Onde |
+|---|---|
+| SSH restrito a CIDRs informados; `0.0.0.0/0` bloqueado por validação | `environments/dev/variables.tf` |
+| IMDSv2 obrigatório (mitiga SSRF → roubo de credenciais) | `modules/ec2-instance` |
+| Volume raiz gp3 criptografado | `modules/ec2-instance` |
+| Bucket de state: versionamento, SSE-KMS, bloqueio público, TLS obrigatório, `prevent_destroy` | `bootstrap/` |
+| Tags padrão (`Project`, `Environment`, `Owner`, `ManagedBy`) via `default_tags` | `environments/dev/providers.tf` |
+| `.tfvars`, `.tfstate`, `.pem` fora do git; hooks detectam chaves privadas/credenciais | `.gitignore`, `.pre-commit-config.yaml` |
+
+## 🧪 Qualidade
+
+```bash
+make check         # fmt-check + validate + lint
+pre-commit install # roda fmt/validate/tflint a cada commit
+```
